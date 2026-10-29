@@ -29,7 +29,7 @@ go install go-micro.dev/v6/cmd/micro@v6.0.0-20261028182459-ddf8c9c37944
 micro chat support
 ```
 
-Ask:
+Start with `What do you see?` for recently updated open issues, or ask:
 
 ```text
 Investigate issue 5042. Summarise what is still unresolved and draft a response.
@@ -42,6 +42,7 @@ client; it belongs in the running service.
 The GitHub operations can also be used without asking the model:
 
 ```sh
+micro call support GitHub.Issues '{"page":1}'
 micro call support GitHub.Issue '{"number":5042}'
 micro call support GitHub.Comments '{"number":5042,"page":1}'
 micro call support GitHub.Search '{"query":"startup error"}'
