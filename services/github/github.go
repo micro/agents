@@ -133,7 +133,7 @@ func (g *GitHub) get(ctx context.Context, path, accept string, rsp *Result) erro
 			return err
 		}
 		for _, item := range result.Items {
-			if item.RepositoryURL != "https://api.github.com/repos/"+g.repository {
+			if !strings.EqualFold(item.RepositoryURL, "https://api.github.com/repos/"+g.repository) {
 				return fmt.Errorf("search returned a result outside the configured repository")
 			}
 		}

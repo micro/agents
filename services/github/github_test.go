@@ -2,6 +2,7 @@ package github
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -101,5 +102,32 @@ func TestRedirectDoesNotForwardToken(t *testing.T) {
 	}
 	if reached {
 		t.Fatal("followed redirect")
+	}
+}
+
+func TestSearchRepositoryCase(t *testing.T) {
+	for _, tc := range []struct {
+		name, repositoryURL string
+		wantError           bool
+	}{
+		{"canonical capitalization", "https://api.github.com/repos/Octocat/Hello-World", false},
+		{"different repository", "https://api.github.com/repos/Octocat/Other", true},
+		{"different owner", "https://api.github.com/repos/Other/Hello-World", true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			api := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				fmt.Fprintf(w, `{"items":[{"repository_url":%q}]}`, tc.repositoryURL)
+			}))
+			defer api.Close()
+			g, err := New("octocat/hello-world", "")
+			if err != nil {
+				t.Fatal(err)
+			}
+			g.baseURL = api.URL
+			err = g.Search(context.Background(), &SearchRequest{Query: "startup"}, new(Result))
+			if (err != nil) != tc.wantError {
+				t.Fatalf("Search error = %v, wantError = %v", err, tc.wantError)
+			}
+		})
 	}
 }
