@@ -31,6 +31,10 @@ func New(repository, token string) (*GitHub, error) {
 	return &GitHub{repository: repository, token: token, baseURL: "https://api.github.com", client: &http.Client{Timeout: 20 * time.Second, CheckRedirect: func(_ *http.Request, _ []*http.Request) error { return http.ErrUseLastResponse }}}, nil
 }
 
+type IssuesRequest struct {
+	Page int `json:"page"`
+}
+
 type IssueRequest struct {
 	Number int `json:"number"`
 }
@@ -52,6 +56,12 @@ type Result struct {
 	Content string `json:"content"`
 	URL     string `json:"url"`
 	More    bool   `json:"more"`
+}
+
+// Issues lists recently updated open issues, excluding pull requests.
+func (g *GitHub) Issues(ctx context.Context, req *IssuesRequest, rsp *Result) error {
+	query := "repo:" + g.repository + " is:issue is:open"
+	return g.get(ctx, fmt.Sprintf("/search/issues?q=%s&sort=updated&order=desc&per_page=10&page=%d", url.QueryEscape(query), page(req.Page)), "application/vnd.github+json", rsp)
 }
 
 func (g *GitHub) Issue(ctx context.Context, req *IssueRequest, rsp *Result) error {

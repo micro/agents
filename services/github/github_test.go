@@ -131,3 +131,27 @@ func TestSearchRepositoryCase(t *testing.T) {
 		})
 	}
 }
+
+func TestIssuesOverview(t *testing.T) {
+	api := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != "GET" || r.URL.Path != "/search/issues" {
+			t.Errorf("unexpected request: %s %s", r.Method, r.URL.Path)
+		}
+		q := r.URL.Query()
+		if q.Get("q") != "repo:micro/go-micro is:issue is:open" || q.Get("page") != "2" || q.Get("sort") != "updated" || q.Get("order") != "desc" {
+			t.Errorf("incorrect overview query: %v", q)
+		}
+		w.Header().Set("Link", `<https://api.github.com/next>; rel="next"`)
+		w.Write([]byte(`{"items":[{"number":42,"title":"Startup failure","repository_url":"https://api.github.com/repos/micro/go-micro"}]}`))
+	}))
+	defer api.Close()
+	g, _ := New("micro/go-micro", "")
+	g.baseURL = api.URL
+	var result Result
+	if err := g.Issues(context.Background(), &IssuesRequest{Page: 2}, &result); err != nil {
+		t.Fatal(err)
+	}
+	if !result.More || !strings.Contains(result.Content, "Startup failure") {
+		t.Fatalf("unexpected overview: %+v", result)
+	}
+}
