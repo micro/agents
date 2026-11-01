@@ -97,7 +97,7 @@ func TestCancellationAndConcurrentReads(t *testing.T) {
 	}
 	ctx, cancel := context.WithCancel(context.Background())
 	done := make(chan struct{})
-	go func() { m.Run(ctx); close(done) }()
+	go func() { Run(ctx, m); close(done) }()
 	<-entered
 	cancel()
 	select {

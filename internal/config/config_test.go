@@ -1,10 +1,10 @@
 package config
 
 import (
+	"encoding/json"
 	"os"
-	"path/filepath"
 	"reflect"
-	"strings"
+
 	"testing"
 )
 
@@ -15,15 +15,24 @@ func TestDefaultsAndOverrides(t *testing.T) {
 	if got := SupportRepositories(); !reflect.DeepEqual(got, []string{"micro/go-micro", "micro/agents"}) {
 		t.Fatal(got)
 	}
-	for _, unit := range Services() {
-		data, err := os.ReadFile(filepath.Join("..", "..", "deploy", "systemd", unit))
-		if err != nil {
-			t.Fatal(err)
+	data, err := os.ReadFile("../../micro.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var cfg struct {
+		Services map[string]struct{ Path string }
+	}
+	if err := json.Unmarshal(data, &cfg); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("MONITOR_SERVICES", "")
+	for _, name := range Agents() {
+		if cfg.Services[name].Path != "./"+name {
+			t.Fatalf("missing service %s", name)
 		}
-		name := strings.TrimSuffix(strings.TrimPrefix(unit, "micro-"), ".service")
-		if !strings.Contains(string(data), "ExecStart=/opt/micro-agents/"+name+"\n") {
-			t.Fatalf("%s does not run %s", unit, name)
-		}
+	}
+	if len(Services()) != len(cfg.Services) {
+		t.Fatal("systemd defaults differ from service set")
 	}
 	t.Setenv("GITHUB_REPOSITORY", "owner/legacy")
 	if got := SupportRepositories(); !reflect.DeepEqual(got, []string{"owner/legacy"}) {

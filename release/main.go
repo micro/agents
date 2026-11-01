@@ -10,11 +10,14 @@ import (
 	"strings"
 
 	"github.com/micro/agents/services/github"
+	"github.com/micro/agents/services/health"
 	micro "go-micro.dev/v6"
 	"go-micro.dev/v6/agent"
 	"go-micro.dev/v6/client"
+	_ "go-micro.dev/v6/cmd/defaults"
 	"go-micro.dev/v6/model"
 	"go-micro.dev/v6/service"
+	"go-micro.dev/v6/store"
 )
 
 //go:embed instructions.md
@@ -22,6 +25,9 @@ var instructions string
 
 func main() {
 	repository, workflow, ref := os.Getenv("GITHUB_REPOSITORY"), os.Getenv("RELEASE_WORKFLOW"), os.Getenv("RELEASE_REF")
+	if repository == "" {
+		repository = "micro/agents"
+	}
 	if ref == "" {
 		ref = "main"
 	}
@@ -29,8 +35,11 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	s := micro.NewService("release", service.Address("127.0.0.1:0"))
+	s := micro.NewService("release", service.Store(store.NewStore(store.Database("agents-release"))), service.Address("127.0.0.1:0"))
 	s.Init()
+	if err := s.Handle(&health.Health{}); err != nil {
+		log.Fatal(err)
+	}
 	// A transport retry could start a second deployment after a lost response.
 	if err := s.Client().Init(client.Retries(0)); err != nil {
 		log.Fatal(err)
@@ -55,7 +64,7 @@ func approval(name, repository, workflow, ref string) agent.ApprovalFunc {
 	prefix := strings.ReplaceAll(name, ".", "_") + "_Actions_"
 	return func(ctx context.Context, call model.ToolCall) (agent.ApprovalDecision, error) {
 		switch call.Name {
-		case prefix + "Workflow", prefix + "Runs", prefix + "Run", prefix + "Jobs":
+		case prefix + "Workflows", prefix + "Workflow", prefix + "Runs", prefix + "Run", prefix + "Jobs":
 			return agent.ApprovalDecision{Status: agent.ApprovalApproved}, nil
 		case prefix + "Dispatch":
 			// Include the fixed target in the approval, without changing tool arguments.

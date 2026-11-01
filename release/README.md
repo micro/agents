@@ -5,7 +5,9 @@ start a release after approval, and inspect its progress or failed steps.
 
 ## Run
 
-The repository needs a workflow with `workflow_dispatch` on its default branch.
+With no configuration, Release inspects workflows in `micro/agents` and cannot
+dispatch one. To enable releases, the target repository needs a workflow with
+`workflow_dispatch` on its default branch.
 Your workflow owns builds, tags, publishing, deployments and environment policy.
 This agent does not create a pipeline or deploy directly to a hosting provider.
 

@@ -1,42 +1,34 @@
 # Monitor
 
-Watch the agents' systemd services. Checks run immediately and once a minute
-without model calls. State changes go to the journal and can be queried in chat.
+Check whether the agents respond to RPC. Run with the rest of the repo using
+`micro run`, then ask `micro chat` what is healthy or what changed.
 
-```sh
-export MICRO_AI_PROVIDER=openai
-export MICRO_AI_API_KEY=your-model-key
-go run ./monitor
-```
+Monitor checks every registered instance through `Health.Check` every ten seconds.
+The default targets are `support`, `devops`, `release`, `monitor` and `alert`.
+Set `MONITOR_SERVICES` to a comma-separated list of registered service names to
+replace them. Processes started locally, through systemd or in containers use the
+same health contract; they must share discovery and have reachable RPC addresses.
 
-In another terminal on the same machine:
+- `healthy`: all registered instances answered `Health.Check` with `ok`.
+- `unhealthy`: at least one instance failed the check.
+- `missing`: no instance is registered.
+- `unknown`: the registry could not be queried or no observation exists yet.
 
-```sh
-micro chat monitor
-```
+These checks do not call models or test external dependencies. They establish RPC
+responsiveness, not whether an agent gives a correct answer. Observations include
+timestamps; Alert detects stale or unavailable monitoring data separately.
 
-Ask **“What is down?”** or **“What changed recently?”**
-
-The default set is `micro-support.service`, `micro-devops.service`,
-`micro-release.service` and `micro-monitor.service`, matching [deploy](../deploy).
-`DEVOPS_SERVICES` overrides the shared set; `MONITOR_SERVICES` overrides it for
-monitoring only. Uninstalled units are reported as missing.
-
-These are process checks. An active unit does not prove that an agent can answer,
-its model is available, or an application is healthy. Permission and read errors
-are reported as unknown. History holds the last 100 changes in memory and resets
-on restart. The journal retains logged changes according to the host's policy.
-There are no external alerts or automatic repairs. Use DevOps to investigate logs.
+State and the latest 100 changes persist in the configured store. Run one Monitor
+per deployment. Alert owns incident detection and notification delivery; Monitor
+does not restart anything.
 
 ## Service
-
-The read-only service is usable without a model:
 
 ```sh
 micro call monitor Monitor.Status '{}'
 micro call monitor Monitor.History '{}'
 ```
 
-The agent binds to loopback and uses local discovery. It has no RPC authentication.
-The polling service lives in [services/monitor](../services/monitor); its `Run`
-method takes a context for shutdown. Only explaining observations requires a model.
+The service lives in [services/monitor](../services/monitor). Its RPC checker uses
+ordinary Go Micro registry/client/store interfaces. The existing systemd checker
+is also available programmatically, but is not the default agent mode.

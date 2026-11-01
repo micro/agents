@@ -25,7 +25,7 @@ func NewActions(repository, token, workflow, ref string) (*Actions, error) {
 	if err != nil {
 		return nil, err
 	}
-	if !workflowName.MatchString(workflow) {
+	if workflow != "" && !workflowName.MatchString(workflow) {
 		return nil, fmt.Errorf("workflow must be a filename such as release.yml")
 	}
 	if ref == "" {
@@ -45,6 +45,9 @@ type WorkflowResponse struct {
 
 // Workflow reads the configured workflow at the ref used for dispatch.
 func (a *Actions) Workflow(ctx context.Context, req *WorkflowRequest, rsp *WorkflowResponse) error {
+	if a.workflow == "" {
+		return fmt.Errorf("no release workflow configured; use Actions.Workflows to inspect available workflows and set RELEASE_WORKFLOW to enable releases")
+	}
 	var file Result
 	path := "/repos/" + a.github.repository + "/contents/.github/workflows/" + a.workflow + "?ref=" + url.QueryEscape(a.ref)
 	if err := a.github.get(ctx, path, "application/vnd.github.raw+json", &file); err != nil {
@@ -63,11 +66,17 @@ type RunRequest struct {
 
 // Runs lists recent runs of the configured workflow, including status and conclusion.
 func (a *Actions) Runs(ctx context.Context, req *RunsRequest, rsp *Result) error {
+	if a.workflow == "" {
+		return fmt.Errorf("set RELEASE_WORKFLOW to inspect its runs")
+	}
 	return a.github.get(ctx, fmt.Sprintf("%s/runs?per_page=10&page=%d", a.path(), page(req.Page)), "application/vnd.github+json", rsp)
 }
 
 // Run reads one run, rejecting runs from other workflows.
 func (a *Actions) Run(ctx context.Context, req *RunRequest, rsp *Result) error {
+	if a.workflow == "" {
+		return fmt.Errorf("set RELEASE_WORKFLOW to inspect its runs")
+	}
 	if req.ID < 1 {
 		return fmt.Errorf("run id must be positive")
 	}
@@ -124,6 +133,9 @@ type DispatchResponse struct {
 // Dispatch starts the configured workflow once. Callers must authorize the action;
 // a timeout has an unknown outcome and must not be retried automatically.
 func (a *Actions) Dispatch(ctx context.Context, req *DispatchRequest, rsp *DispatchResponse) error {
+	if a.workflow == "" {
+		return fmt.Errorf("set RELEASE_WORKFLOW before dispatching a release")
+	}
 	if a.github.token == "" {
 		return fmt.Errorf("set GITHUB_TOKEN with Actions write permission to dispatch")
 	}
@@ -178,4 +190,9 @@ func (a *Actions) Dispatch(ctx context.Context, req *DispatchRequest, rsp *Dispa
 
 func (a *Actions) path() string {
 	return "/repos/" + a.github.repository + "/actions/workflows/" + a.workflow
+}
+
+// Workflows lists available workflows; listing does not enable dispatch.
+func (a *Actions) Workflows(ctx context.Context, req *RunsRequest, rsp *Result) error {
+	return a.github.get(ctx, fmt.Sprintf("/repos/%s/actions/workflows?per_page=20&page=%d", a.github.repository, page(req.Page)), "application/vnd.github+json", rsp)
 }
