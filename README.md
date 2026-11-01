@@ -2,6 +2,7 @@
 
 Agents built with [Go Micro](https://github.com/micro/go-micro).
 
+- [DevOps](devops): investigate local systemd service failures using status and journal logs.
 - [Support](support): investigate GitHub issues and draft responses with supporting evidence.
 
 Each agent is a Go program. Service integrations live in `services/` and can also
