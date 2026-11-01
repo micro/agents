@@ -99,23 +99,29 @@ func (m *Monitor) History(_ context.Context, _ *HistoryRequest, rsp *HistoryResp
 func (m *Monitor) sample(ctx context.Context) error {
 	m.check.Lock()
 	defer m.check.Unlock()
-	observations := make([]State, 0, len(m.units))
-	for _, name := range m.units {
-		if ctx.Err() != nil {
-			return ctx.Err()
-		}
-		var state State
-		if m.probe != nil {
-			state = m.probe(ctx, name)
-		} else {
-			state = m.systemd(ctx, name)
-		}
-		if ctx.Err() != nil {
-			return ctx.Err()
-		}
-		state.Service = name
-		state.ObservedAt = time.Now().UTC().Format(time.RFC3339Nano)
-		observations = append(observations, state)
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	observations := make([]State, len(m.units))
+	var probes sync.WaitGroup
+	for i, name := range m.units {
+		probes.Add(1)
+		go func() {
+			defer probes.Done()
+			var state State
+			if m.probe != nil {
+				state = m.probe(ctx, name)
+			} else {
+				state = m.systemd(ctx, name)
+			}
+			state.Service = name
+			state.ObservedAt = time.Now().UTC().Format(time.RFC3339Nano)
+			observations[i] = state
+		}()
+	}
+	probes.Wait()
+	if err := ctx.Err(); err != nil {
+		return err
 	}
 	m.mu.Lock()
 	defer m.mu.Unlock()
