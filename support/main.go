@@ -6,30 +6,29 @@ import (
 	"log"
 	"os"
 
+	"github.com/micro/agents/internal/config"
 	"github.com/micro/agents/services/github"
 	micro "go-micro.dev/v6"
+	"go-micro.dev/v6/service"
 )
 
 //go:embed instructions.md
 var instructions string
 
 func main() {
-	repository := os.Getenv("GITHUB_REPOSITORY")
-	if repository == "" {
-		log.Fatal("set GITHUB_REPOSITORY to owner/name")
-	}
-	gh, err := github.New(repository, os.Getenv("GITHUB_TOKEN"))
+	repositories := config.SupportRepositories()
+	gh, err := github.New(repositories[0], os.Getenv("GITHUB_TOKEN"), repositories[1:]...)
 	if err != nil {
 		log.Fatal(err)
 	}
-	service := micro.NewService("support")
+	service := micro.NewService("support", service.Address("127.0.0.1:0"))
 	service.Init()
 	if err := service.Handle(gh); err != nil {
 		log.Fatal(err)
 	}
 	agent := micro.NewAgent("support",
-		micro.AgentPrompt(instructions+"\nConfigured repository: "+repository),
-		micro.AgentMaxSteps(12),
+		micro.AgentPrompt(instructions),
+		micro.AgentMaxSteps(24),
 	)
 	if err := service.Handle(agent); err != nil {
 		log.Fatal(err)

@@ -4,26 +4,22 @@ package main
 import (
 	_ "embed"
 	"log"
-	"os"
-	"strings"
 
+	"github.com/micro/agents/internal/config"
 	"github.com/micro/agents/services/systemd"
 	micro "go-micro.dev/v6"
+	"go-micro.dev/v6/service"
 )
 
 //go:embed instructions.md
 var instructions string
 
 func main() {
-	units := os.Getenv("DEVOPS_SERVICES")
-	if units == "" {
-		log.Fatal("set DEVOPS_SERVICES to comma-separated service names, e.g. api.service,worker.service")
-	}
-	host, err := systemd.New(strings.Split(units, ","))
+	host, err := systemd.New(config.Services())
 	if err != nil {
 		log.Fatal(err)
 	}
-	service := micro.NewService("devops")
+	service := micro.NewService("devops", service.Address("127.0.0.1:0"))
 	service.Init()
 	if err := service.Handle(host); err != nil {
 		log.Fatal(err)

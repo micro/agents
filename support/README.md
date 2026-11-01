@@ -6,14 +6,19 @@ It cannot post comments, change labels, close issues or execute code.
 
 ## Run
 
-From the repository root, configure the repository and a supported model:
+By default, support covers both `micro/go-micro` and `micro/agents`.
+From the repository root, configure a supported model:
 
 ```sh
-export GITHUB_REPOSITORY=micro/go-micro
 export MICRO_AI_PROVIDER=openai
 export MICRO_AI_API_KEY=your-model-key
 go run ./support
 ```
+
+Set `SUPPORT_REPOSITORIES=owner/one,owner/two` to replace the default set.
+The existing `GITHUB_REPOSITORY=owner/repo` setting still selects one repository
+when `SUPPORT_REPOSITORIES` is unset. This agent reads issues when asked; it does
+not poll GitHub or post notifications in the background.
 
 Provider-specific keys such as `OPENAI_API_KEY` also work. Set `MICRO_AI_MODEL`
 when selecting a particular model. Public GitHub repositories work without a
@@ -32,7 +37,7 @@ micro chat support
 Start with `What do you see?` for recently updated open issues, or ask:
 
 ```text
-Investigate issue 5042. Summarise what is still unresolved and draft a response.
+Investigate micro/go-micro#5042. Summarise what is still unresolved and draft a response.
 ```
 
 The result contains an investigation summary, source links and a draft response.
@@ -42,13 +47,15 @@ client; it belongs in the running service.
 The GitHub operations can also be used without asking the model:
 
 ```sh
+micro call support GitHub.Repositories '{}'
 micro call support GitHub.Issues '{"page":1}'
-micro call support GitHub.Issue '{"number":5042}'
+micro call support GitHub.Issue '{"repository":"micro/go-micro","number":5042}'
 micro call support GitHub.Comments '{"number":5042,"page":1}'
 micro call support GitHub.Search '{"query":"startup error"}'
 micro call support GitHub.File '{"path":"README.md"}'
 ```
 
+Each read accepts `repository`; omitted values use the first configured repository.
 `GitHub.File` also lists directories. Comments and search results include `more`
 when another page is available. Files come from the default branch; check their
 applicability to the reporter's release. Responses larger than 256 KiB return an
@@ -62,8 +69,7 @@ Register additional read-only service operations in `main.go` when the agent
 needs other evidence. Only this service's endpoints are exposed to the agent
 by default.
 
-The service uses Go Micro's default local discovery. Run it on a trusted local
-network: this starter does not add RPC authentication or tenant isolation. Do not
+The service uses Go Micro's default local discovery. It binds to loopback by default. Run the CLI on the same machine; this starter does not add RPC authentication or tenant isolation. Do not
 expose it publicly with a token that can read private repositories.
 
 ## Version and verification
