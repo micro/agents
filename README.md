@@ -15,9 +15,36 @@ By default, Support covers this repository and Go Micro. DevOps and Monitor
 inspect the units in [deploy](deploy). Follow that guide to run the agents together
 on one host, or override their targets for your own environment.
 
-## Development
+## Install
 
-Requires Go 1.26 or newer.
+Requires Go 1.26 or newer, with Go's bin directory on your PATH.
+
+```sh
+go install go-micro.dev/v6/cmd/micro@master
+git clone https://github.com/micro/agents
+cd agents
+```
+
+Set your model credentials and configure [Release's workflow](release#run)
+before starting the full set. For example, with OpenAI:
+
+```sh
+export MICRO_AI_PROVIDER=openai
+export MICRO_AI_API_KEY=your-model-key
+micro run
+```
+
+In another terminal, with the same model settings:
+
+```sh
+micro chat
+```
+
+`micro run` builds and starts the agents as separate local processes; Ctrl+C
+stops them. DevOps and Monitor currently inspect systemd units, which
+`micro run` does not create. For a Linux server installation, see [deploy](deploy).
+
+## Development
 
 ```sh
 go test -race ./...
