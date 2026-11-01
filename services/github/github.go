@@ -1,4 +1,4 @@
-// Package github exposes read-only GitHub operations as Go Micro endpoints.
+// Package github exposes repository and workflow operations as Go Micro endpoints.
 package github
 
 import (
