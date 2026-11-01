@@ -50,10 +50,7 @@ Expose running agents and services to an MCP client through Go Micro's gateway.
 With `micro run` running, start the gateway in another terminal on the same host:
 
 ```sh
-micro gateway --mcp-address 127.0.0.1:3000 \
-  --mcp-tool support.Agent.Chat \
-  --mcp-tool monitor.Monitor.Status \
-  --mcp-tool monitor.Monitor.History
+micro gateway --mcp-address 127.0.0.1:3000
 ```
 
 Add a **Streamable HTTP** MCP server in your client with this URL:
@@ -62,8 +59,8 @@ Add a **Streamable HTTP** MCP server in your client with this URL:
 http://127.0.0.1:3000/mcp
 ```
 
-The client discovers the selected tools and calls them through the gateway.
-`support.Agent.Chat` accepts a `message`; the monitor tools accept `{}`.
+The gateway automatically exposes discovered service endpoints as tools.
+The client lists and calls them without configuring each tool individually.
 The gateway and agents must use the same registry; the default is local mDNS.
 An MCP client only needs the gateway connection, not registry access.
 
@@ -71,9 +68,10 @@ For remote access, put the gateway behind HTTPS, enable `--auth` with
 `MICRO_AUTH_TOKEN`, and configure the client to send that bearer token. Use the
 public HTTPS URL ending in `/mcp`, rather than the loopback URL above.
 
-Keep the explicit tool list: omitting it exposes all discovered tools. This example
-provides agent replies and service reads; it does not bridge interactive approvals.
-Release's write endpoints should remain private until that approval path is supported.
+To expose only a subset, optionally repeat `--mcp-tool <tool-name>`.
+The default includes write endpoints such as Release's dispatch operation.
+MCP calls do not inherit chat approval; restrict exposed tools before giving
+clients access to deployment actions.
 
 ## Development
 
