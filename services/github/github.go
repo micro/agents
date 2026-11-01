@@ -16,38 +16,58 @@ import (
 
 var repositoryName = regexp.MustCompile(`^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$`)
 
-// GitHub is restricted to one repository. Its endpoints never write to GitHub.
+// GitHub is restricted to its configured repositories. Its endpoints never write to GitHub.
 type GitHub struct {
-	repository string
-	token      string
-	client     *http.Client
-	baseURL    string
+	repository   string
+	repositories []string
+	token        string
+	client       *http.Client
+	baseURL      string
 }
 
-func New(repository, token string) (*GitHub, error) {
-	if !repositoryName.MatchString(repository) {
-		return nil, fmt.Errorf("repository must be owner/name")
+func New(repository, token string, additional ...string) (*GitHub, error) {
+	repositories := append([]string{repository}, additional...)
+	if len(repositories) > 16 {
+		return nil, fmt.Errorf("configure at most 16 repositories")
 	}
-	return &GitHub{repository: repository, token: token, baseURL: "https://api.github.com", client: &http.Client{Timeout: 20 * time.Second, CheckRedirect: func(_ *http.Request, _ []*http.Request) error { return http.ErrUseLastResponse }}}, nil
+	for i, name := range repositories {
+		name = strings.TrimSpace(name)
+		if !repositoryName.MatchString(name) {
+			return nil, fmt.Errorf("repository must be owner/name")
+		}
+		for _, part := range strings.Split(name, "/") {
+			if part == "." || part == ".." {
+				return nil, fmt.Errorf("repository must not contain dot segments")
+			}
+		}
+		repositories[i] = name
+	}
+	repository = repositories[0]
+	return &GitHub{repository: repository, repositories: repositories, token: token, baseURL: "https://api.github.com", client: &http.Client{Timeout: 20 * time.Second, CheckRedirect: func(_ *http.Request, _ []*http.Request) error { return http.ErrUseLastResponse }}}, nil
 }
 
 type IssuesRequest struct {
-	Page int `json:"page"`
+	Repository string `json:"repository"`
+	Page       int    `json:"page"`
 }
 
 type IssueRequest struct {
-	Number int `json:"number"`
+	Repository string `json:"repository"`
+	Number     int    `json:"number"`
 }
 type CommentsRequest struct {
-	Number int `json:"number"`
-	Page   int `json:"page"`
+	Repository string `json:"repository"`
+	Number     int    `json:"number"`
+	Page       int    `json:"page"`
 }
 type SearchRequest struct {
-	Query string `json:"query"`
-	Page  int    `json:"page"`
+	Repository string `json:"repository"`
+	Query      string `json:"query"`
+	Page       int    `json:"page"`
 }
 type FileRequest struct {
-	Path string `json:"path"`
+	Repository string `json:"repository"`
+	Path       string `json:"path"`
 }
 
 // Result contains GitHub JSON (or raw file text) and the source URL.
@@ -60,23 +80,39 @@ type Result struct {
 
 // Issues lists recently updated open issues, excluding pull requests.
 func (g *GitHub) Issues(ctx context.Context, req *IssuesRequest, rsp *Result) error {
+	g, err := g.scope(req.Repository)
+	if err != nil {
+		return err
+	}
 	query := "repo:" + g.repository + " is:issue is:open"
 	return g.get(ctx, fmt.Sprintf("/search/issues?q=%s&sort=updated&order=desc&per_page=10&page=%d", url.QueryEscape(query), page(req.Page)), "application/vnd.github+json", rsp)
 }
 
 func (g *GitHub) Issue(ctx context.Context, req *IssueRequest, rsp *Result) error {
+	g, err := g.scope(req.Repository)
+	if err != nil {
+		return err
+	}
 	if req.Number < 1 {
 		return fmt.Errorf("issue number must be positive")
 	}
 	return g.get(ctx, "/repos/"+g.repository+"/issues/"+strconv.Itoa(req.Number), "application/vnd.github+json", rsp)
 }
 func (g *GitHub) Comments(ctx context.Context, req *CommentsRequest, rsp *Result) error {
+	g, err := g.scope(req.Repository)
+	if err != nil {
+		return err
+	}
 	if req.Number < 1 {
 		return fmt.Errorf("issue number must be positive")
 	}
 	return g.get(ctx, fmt.Sprintf("/repos/%s/issues/%d/comments?per_page=30&page=%d", g.repository, req.Number, page(req.Page)), "application/vnd.github+json", rsp)
 }
 func (g *GitHub) Search(ctx context.Context, req *SearchRequest, rsp *Result) error {
+	g, err := g.scope(req.Repository)
+	if err != nil {
+		return err
+	}
 	// Quote each word so user/model input cannot inject GitHub search qualifiers.
 	words := strings.Fields(req.Query)
 	if len(words) == 0 || len(req.Query) > 256 {
@@ -91,6 +127,10 @@ func (g *GitHub) Search(ctx context.Context, req *SearchRequest, rsp *Result) er
 
 // File reads a file or lists a directory at the repository's default branch.
 func (g *GitHub) File(ctx context.Context, req *FileRequest, rsp *Result) error {
+	g, err := g.scope(req.Repository)
+	if err != nil {
+		return err
+	}
 	parts := strings.Split(req.Path, "/")
 	for i, p := range parts {
 		if p == ".." || p == "." {
@@ -152,4 +192,29 @@ func (g *GitHub) get(ctx context.Context, path, accept string, rsp *Result) erro
 	rsp.URL = "https://api.github.com" + path
 	rsp.More = strings.Contains(res.Header.Get("Link"), `rel="next"`)
 	return nil
+}
+
+// Repositories lists the allowed repositories; the first is used when omitted.
+func (g *GitHub) Repositories(_ context.Context, _ *RepositoriesRequest, rsp *RepositoriesResponse) error {
+	rsp.Repositories = append([]string(nil), g.repositories...)
+	return nil
+}
+
+type RepositoriesRequest struct{}
+type RepositoriesResponse struct {
+	Repositories []string `json:"repositories"`
+}
+
+func (g *GitHub) scope(repository string) (*GitHub, error) {
+	if repository == "" {
+		return g, nil
+	}
+	for _, allowed := range g.repositories {
+		if strings.EqualFold(repository, allowed) {
+			scoped := *g
+			scoped.repository = allowed
+			return &scoped, nil
+		}
+	}
+	return nil, fmt.Errorf("repository %q is not configured", repository)
 }

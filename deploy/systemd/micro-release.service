@@ -1,0 +1,23 @@
+[Unit]
+Description=Micro release agent
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+User=micro-agents
+Group=micro-agents
+WorkingDirectory=/opt/micro-agents
+ExecStart=/opt/micro-agents/release
+Environment=HOME=/var/lib/micro-agents/release
+EnvironmentFile=/etc/micro-agents/common.env
+EnvironmentFile=-/etc/micro-agents/release.env
+StateDirectory=micro-agents/release
+Restart=on-failure
+RestartSec=5
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectHome=true
+ProtectSystem=strict
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,23 @@
+[Unit]
+Description=Micro support agent
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+User=micro-agents
+Group=micro-agents
+WorkingDirectory=/opt/micro-agents
+ExecStart=/opt/micro-agents/support
+Environment=HOME=/var/lib/micro-agents/support
+EnvironmentFile=/etc/micro-agents/common.env
+EnvironmentFile=-/etc/micro-agents/support.env
+StateDirectory=micro-agents/support
+Restart=on-failure
+RestartSec=5
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectHome=true
+ProtectSystem=strict
+
+[Install]
+WantedBy=multi-user.target

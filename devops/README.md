@@ -10,13 +10,15 @@ Run on the Linux machine you want to inspect, with `systemctl` and `journalctl`
 installed. From the repository root:
 
 ```sh
-export DEVOPS_SERVICES=api.service,worker.service
 export MICRO_AI_PROVIDER=openai
 export MICRO_AI_API_KEY=your-model-key
 go run ./devops
 ```
 
-Use exact service names, including `.service`. Only configured units can be
+By default it inspects `micro-support.service`, `micro-devops.service`,
+`micro-release.service` and `micro-monitor.service`, matching [the deployment
+units](../deploy). Set `DEVOPS_SERVICES=api.service,worker.service` to replace
+this set. Use exact service names, including `.service`. Only configured units can be
 inspected (up to 16). Provider-specific keys and `MICRO_AI_MODEL` also work.
 Run as an unprivileged account with permission to read the relevant journal.
 The agent does not invoke sudo or change permissions. Journal access groups can
@@ -30,12 +32,12 @@ go install go-micro.dev/v6/cmd/micro@master
 micro chat devops
 ```
 
-Ask **“What is running?”** or **“Why is api.service failing?”** The model key
+Ask **“What is running?”** or **“Why is micro-support.service failing?”** The model key
 belongs to the running agent; the chat client does not need it.
 
 The agent runs on the host being inspected. The CLI must share its registry;
 this example uses default local discovery. Like support, this starter does not
-add RPC authentication or tenant isolation. Keep it on a trusted local network.
+add RPC authentication or tenant isolation. It binds to loopback by default; use the CLI on the same machine.
 Retrieved status and logs are sent to your configured model provider; use units
 whose logs are appropriate to share.
 
@@ -45,8 +47,8 @@ These are ordinary Go Micro service endpoints, usable without a model:
 
 ```sh
 micro call devops Systemd.List '{}'
-micro call devops Systemd.Status '{"service":"api.service"}'
-micro call devops Systemd.Logs '{"service":"api.service","minutes":60,"lines":100}'
+micro call devops Systemd.Status '{"service":"micro-support.service"}'
+micro call devops Systemd.Logs '{"service":"micro-support.service","minutes":60,"lines":100}'
 ```
 
 Logs default to the last hour and 100 entries, with a maximum of 24 hours and
