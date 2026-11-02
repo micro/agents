@@ -2,8 +2,9 @@
 
 Agents built with [Go Micro](https://github.com/micro/go-micro).
 
-- [DevOps](devops): investigate local systemd service failures using status and journal logs.
-- [Monitor](monitor): watch the agents' services and report failures and recoveries.
+- [Alert](alert): record incidents and deliver failure and recovery notifications.
+- [DevOps](devops): investigate service failures using health observations and logs.
+- [Monitor](monitor): check that the agents respond and record health changes.
 - [Release](release): release and deploy through a configured GitHub Actions workflow.
 - [Support](support): investigate GitHub issues and draft responses with supporting evidence.
 
@@ -11,9 +12,9 @@ Each agent is a Go program. Service integrations live in `services/` and can als
 be called directly over RPC. Run agents in your own environment with your own
 model configuration.
 
-By default, Support covers this repository and Go Micro. DevOps and Monitor
-inspect the units in [deploy](deploy). Follow that guide to run the agents together
-on one host, or override their targets for your own environment.
+By default, Support covers this repository and Go Micro. Monitor, Alert and
+DevOps look after the agents running here. Override their targets for your own
+environment; see [deploy](deploy) for server installation.
 
 ## Install
 
@@ -25,8 +26,7 @@ git clone https://github.com/micro/agents
 cd agents
 ```
 
-Set your model credentials and configure [Release's workflow](release#run)
-before starting the full set. For example, with OpenAI:
+Set your model credentials. For example, with OpenAI:
 
 ```sh
 export MICRO_AI_PROVIDER=openai
@@ -40,9 +40,10 @@ In another terminal, with the same model settings:
 micro chat
 ```
 
-`micro run` builds and starts the agents as separate local processes; Ctrl+C
-stops them. DevOps and Monitor currently inspect systemd units, which
-`micro run` does not create. For a Linux server installation, see [deploy](deploy).
+`micro run` uses `micro.json` to build and start all five agents; Ctrl+C stops
+them. Release starts in inspection-only mode until you [configure a workflow](release#run).
+Monitor and Alert work in the background without model calls. Each agent has its
+own persistent store database. Run chat on the same host with the same registry.
 
 ## MCP
 
@@ -79,5 +80,12 @@ clients access to deployment actions.
 go test -race ./...
 go build ./...
 ```
+
+To test the full CLI journey with local model/webhook fixtures and a NATS
+registry, install `nats-server`, then run `python3 scripts/smoke.py`. Set
+`MICRO_BIN` to select a CLI binary. The test starts all agents, delegates from one
+chat, reads failure logs through DevOps, stops and restarts Support, verifies
+failure/recovery delivery, and checks
+Alert persistence. It uses temporary state and no real provider credentials.
 
 Licensed under AGPL-3.0; see [LICENSE](LICENSE).

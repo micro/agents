@@ -133,7 +133,7 @@ func TestApprovalScope(t *testing.T) {
 			t.Fatalf("%s: %+v %v", name, d, err)
 		}
 	}
-	for _, name := range []string{"Workflow", "Runs", "Run", "Jobs"} {
+	for _, name := range []string{"Workflows", "Workflow", "Runs", "Run", "Jobs"} {
 		d, err := check(context.Background(), model.ToolCall{Name: "release_Actions_" + name})
 		if err != nil || d.Status != agent.ApprovalApproved {
 			t.Fatalf("%s: %+v %v", name, d, err)

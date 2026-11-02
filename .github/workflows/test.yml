@@ -14,3 +14,16 @@ jobs:
       - run: go test -race ./...
       - run: go build ./...
       - run: go vet ./...
+
+  journey:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+      - run: go install go-micro.dev/v6/cmd/micro@65cbacb498749e38b33fdf31f8cab8458e0235be
+      - run: go install github.com/nats-io/nats-server/v2@v2.11.3
+      - run: python3 scripts/smoke.py
+        timeout-minutes: 10

@@ -1,83 +1,72 @@
-# Run the agents together
+# Deployment
 
-These systemd units run the repository's four binaries on one Linux host.
-There is no additional runtime. Support reads this repo and Go Micro; DevOps
-inspects the units; Monitor records their process state. Release uses a GitHub
-Actions workflow you configure.
-
-## Install
-
-From a checkout, build the binaries with Go 1.26 or newer:
+The same `micro.json` describes local startup and server deployment. Locally:
 
 ```sh
-mkdir -p bin
-for agent in support devops release monitor; do
-  go build -o "bin/$agent" "./$agent"
-done
-sudo useradd --system --home-dir /var/lib/micro-agents --shell /usr/sbin/nologin micro-agents
-sudo install -d /opt/micro-agents /etc/micro-agents
-sudo install -m 755 bin/support bin/devops bin/release bin/monitor /opt/micro-agents/
-sudo install -m 644 deploy/systemd/*.service /etc/systemd/system/
-sudo install -m 600 /dev/null /etc/micro-agents/common.env
-sudoedit /etc/micro-agents/common.env
+micro run
 ```
 
-Create the user only if it does not already exist. On upgrades, preserve existing
-environment files. Put your model settings in `common.env`:
+All five agents are separate processes. Monitor checks their RPC endpoints and
+Alert records failures and recoveries. No systemd installation is needed locally.
+Use `micro chat` as the single entry point.
+
+## Linux server
+
+Use Go Micro's existing systemd deployment model. On a Linux server with the CLI:
+
+```sh
+sudo micro init --server
+```
+
+This creates the `micro` account, `/opt/micro/{bin,config,data}` and the
+`micro@.service` unit. Before deployment, create a mode-600 environment file for
+each agent in `/opt/micro/config/`: `support.env`, `devops.env`, `release.env`,
+`monitor.env` and `alert.env`. The systemd manager reads these files; keep them
+root-owned. Each file needs your model configuration and a writable home:
 
 ```ini
+HOME=/opt/micro/data
 MICRO_AI_PROVIDER=openai
 MICRO_AI_API_KEY=your-model-key
 ```
 
-Other providers work too. The common file is required by all units. Optional
-`support.env`, `devops.env`, `release.env` and `monitor.env` in the same directory
-override it for each agent. Keep credential files root-owned with mode 600;
-systemd loads them before switching to the service user.
+In `devops.env`, select systemd inspection:
 
-Support needs no GitHub token for public reads. Add `GITHUB_TOKEN` to
-`support.env` for higher rate limits or private repository access. Do not share
-Release's write token through `common.env`.
-
-Release still needs an existing `workflow_dispatch` workflow. There is no
-deployment workflow in this repository yet. Configure `release.env` using the
-[release instructions](../release), including `GITHUB_REPOSITORY`,
-`RELEASE_WORKFLOW` and a suitably scoped `GITHUB_TOKEN`. Do not start Release
-until that is configured; Monitor will report it as inactive or missing.
-
-```sh
-sudo systemctl daemon-reload
-sudo systemctl enable --now micro-support micro-devops micro-monitor
-# After configuring release.env:
-sudo systemctl enable --now micro-release
+```ini
+DEVOPS_SERVICES=micro@support.service,micro@devops.service,micro@release.service,micro@monitor.service,micro@alert.service
 ```
 
-The DevOps unit joins `systemd-journal` to read logs. That account-level permission
-can read more than the agent's configured allowlist. Adjust the group for your
-distribution. No agent runs as root or has permission to restart these units.
+Grant the `micro` account journal access if needed (`systemd-journal` on many
+Linux distributions). This permission can read the host journal beyond the
+agent's allowed units. None of the agents needs sudo or service restart rights.
 
-## Use
+Release starts in inspection-only mode until its workflow is configured. Put its
+write token only in `release.env`; see [Release](../release). Optionally configure
+`ALERT_WEBHOOK` in `alert.env`; otherwise notifications are written to the journal.
+All agents must use the same registry. The default is mDNS; on networks without
+multicast, set a shared registry such as NATS in each environment file and in the CLI.
 
-Use a current Go Micro CLI on the same host, with its default local discovery:
+From this checkout, inspect the plan and deploy:
 
 ```sh
-micro chat support
-micro chat devops
-micro chat monitor
-micro chat release
+micro deploy --dry-run user@host
+micro deploy user@host
 ```
 
-The servers bind to loopback. Keep the registry and host trusted; these examples
-do not add RPC authentication or isolate untrusted local users.
+The SSH account needs permission to write the target binaries and manage the
+systemd units. The current CLI builds for Linux/amd64. It does not provision a
+host or configure credentials, and it does not verify an application's behaviour.
+The services bind to loopback; run chat and the MCP gateway on that same host.
 
-| Setting | Default | Override |
-| --- | --- | --- |
-| Support repositories | micro/go-micro, micro/agents | `SUPPORT_REPOSITORIES`; legacy `GITHUB_REPOSITORY` selects one |
-| DevOps units | All four micro-*.service units above | `DEVOPS_SERVICES`, comma-separated exact names |
-| Monitor units | Same as DevOps | `MONITOR_SERVICES` |
-| Release target | Explicit configuration required | `GITHUB_REPOSITORY`, `RELEASE_WORKFLOW`, `RELEASE_REF` |
+## Overrides
 
-To inspect only installed units, set `DEVOPS_SERVICES` in `common.env` to that
-subset. Restart the affected units after changing configuration. Running an agent
-with `go run` does not install a systemd unit, so these checks will report missing
-units until the deployment above is installed.
+- `SUPPORT_REPOSITORIES`: comma-separated repositories; defaults to Go Micro and this repo.
+- `GITHUB_REPOSITORY`: Release's repository, and the legacy single-repository Support override. Use per-agent environment files to keep these separate.
+- `DEVOPS_SERVICES`: explicit systemd units; otherwise DevOps reads this project's `micro run` logs.
+- `MONITOR_SERVICES`: registered service names, defaulting to the five agents.
+- `ALERT_WEBHOOK`: optional HTTP(S) notification destination, configured by the operator.
+
+Monitor and Alert persist state through Go Micro's configured store. Keep
+`/opt/micro/data` across upgrades. Run one Monitor and one Alert per deployment;
+their state is not coordinated across replicas. Use separate state directories
+and registry scopes for separate deployments.

@@ -97,7 +97,7 @@ func TestCancellationAndConcurrentReads(t *testing.T) {
 	}
 	ctx, cancel := context.WithCancel(context.Background())
 	done := make(chan struct{})
-	go func() { m.Run(ctx); close(done) }()
+	go func() { Run(ctx, m); close(done) }()
 	<-entered
 	cancel()
 	select {
@@ -159,5 +159,60 @@ func TestMonitorOverRPC(t *testing.T) {
 	}
 	if len(history.Events) != 1 || history.Events[0].Status != "failed" {
 		t.Fatal(history)
+	}
+}
+
+// Every probe must start before a slow service finishes. Sequential sampling
+// would accumulate each service's timeout and publish stale observations.
+func TestSampleChecksAllServicesConcurrently(t *testing.T) {
+	m := &Monitor{}
+	for i := 0; i < 16; i++ {
+		name := fmt.Sprintf("service-%d", i)
+		m.units = append(m.units, name)
+		m.states = append(m.states, State{Service: name, Status: "unknown"})
+	}
+	started := make(chan string, len(m.units))
+	release := make(chan struct{})
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	m.probe = func(ctx context.Context, name string) State {
+		started <- name
+		select {
+		case <-release:
+		case <-ctx.Done():
+		}
+		return State{Status: "unhealthy", Error: name}
+	}
+	done := make(chan error, 1)
+	go func() { done <- m.sample(ctx) }()
+	seen := map[string]bool{}
+	for range m.units {
+		select {
+		case name := <-started:
+			seen[name] = true
+		case <-ctx.Done():
+			<-done
+			t.Fatal("slow probes prevented other services from being checked")
+		}
+	}
+	close(release)
+	if err := <-done; err != nil {
+		t.Fatal(err)
+	}
+	if len(seen) != len(m.units) {
+		t.Fatal("not all services were checked")
+	}
+	var status StatusResponse
+	if err := m.Status(ctx, &StatusRequest{}, &status); err != nil {
+		t.Fatal(err)
+	}
+	for i, state := range status.Services {
+		if state.Service != m.units[i] || state.Error != m.units[i] || state.Status != "unhealthy" {
+			t.Fatalf("observation assigned to wrong service: %+v", state)
+		}
+		observed, err := time.Parse(time.RFC3339Nano, state.ObservedAt)
+		if err != nil || time.Since(observed) > time.Minute {
+			t.Fatalf("stale observation: %+v", state)
+		}
 	}
 }

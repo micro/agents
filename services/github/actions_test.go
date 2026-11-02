@@ -23,7 +23,7 @@ func actionsFixture(t *testing.T, handler http.HandlerFunc) *Actions {
 }
 
 func TestActionsScope(t *testing.T) {
-	for _, name := range []string{"", "../release.yml", "release.yml?ref=evil", "a/b.yml"} {
+	for _, name := range []string{"../release.yml", "release.yml?ref=evil", "a/b.yml"} {
 		if _, err := NewActions("micro/example", "", name, ""); err == nil {
 			t.Fatalf("accepted %q", name)
 		}
@@ -170,5 +170,27 @@ func TestDispatchDoesNotFollowRedirect(t *testing.T) {
 	})
 	if err := a.Dispatch(context.Background(), &DispatchRequest{}, &DispatchResponse{}); err == nil || reached {
 		t.Fatal("followed dispatch redirect")
+	}
+}
+
+func TestUnconfiguredWorkflowIsReadOnly(t *testing.T) {
+	calls := 0
+	a := actionsFixture(t, func(w http.ResponseWriter, r *http.Request) {
+		calls++
+		if r.Method != "GET" || r.URL.Path != "/repos/micro/example/actions/workflows" {
+			t.Error(r.Method, r.URL)
+		}
+		fmt.Fprint(w, `{"workflows":[]}`)
+	})
+	a.workflow = ""
+	var result Result
+	if err := a.Workflows(context.Background(), &RunsRequest{}, &result); err != nil {
+		t.Fatal(err)
+	}
+	if err := a.Dispatch(context.Background(), &DispatchRequest{}, &DispatchResponse{}); err == nil {
+		t.Fatal("unconfigured workflow dispatched")
+	}
+	if calls != 1 {
+		t.Fatal("dispatch made an HTTP request")
 	}
 }
