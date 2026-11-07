@@ -131,8 +131,8 @@ with tempfile.TemporaryDirectory(prefix="agents-smoke-") as scratch:
         proc = subprocess.Popen(command, cwd=cwd, env=env, stdout=output, stderr=output)
         processes.append(proc)
         return proc
-    def rpc(service, endpoint):
-        result = subprocess.run([MICRO, "call", service, endpoint, "{}"], cwd=ROOT, env=env,
+    def rpc(service, endpoint, request=None):
+        result = subprocess.run([MICRO, "call", service, endpoint, json.dumps(request or {})], cwd=ROOT, env=env,
                                 capture_output=True, text=True, timeout=8, check=True)
         return json.loads(result.stdout)
     try:
@@ -149,6 +149,8 @@ with tempfile.TemporaryDirectory(prefix="agents-smoke-") as scratch:
             result = rpc("monitor", "Monitor.Status")
             return len(result.get("services", [])) == 6 and all(s["status"] == "healthy" for s in result["services"])
         wait_for("all six services respond through shared discovery", healthy, 240)
+        assert "Micro Studio:" in rpc("devops", "Process.Logs", {"service": "studio"})["content"]
+        print("PASS: DevOps reads Studio logs from its configured command directory", flush=True)
         studio_url = f"http://127.0.0.1:{studio_port}"
         print("Studio URL:", studio_url, flush=True)
         def web(path):

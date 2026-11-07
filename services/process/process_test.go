@@ -38,3 +38,25 @@ func TestScopedBoundedLogs(t *testing.T) {
 		t.Fatal("followed symlink")
 	}
 }
+
+func TestConfiguredServicePath(t *testing.T) {
+	root, logs := t.TempDir(), t.TempDir()
+	if err := os.WriteFile(filepath.Join(root, "micro.json"), []byte(`{"services":{"studio":{"path":"./cmd/studio"}}}`), 0600); err != nil {
+		t.Fatal(err)
+	}
+	p, err := New(root, logs, []string{"studio"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	hash := fmt.Sprintf("%x", md5.Sum([]byte(filepath.Join(root, "cmd", "studio"))))[:8]
+	if err := os.WriteFile(filepath.Join(logs, "studio-"+hash+".log"), []byte("Studio started"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	var rsp LogsResponse
+	if err := p.Logs(context.Background(), &LogsRequest{Service: "studio"}, &rsp); err != nil {
+		t.Fatal(err)
+	}
+	if rsp.Content != "Studio started" {
+		t.Fatal(rsp)
+	}
+}

@@ -4,6 +4,8 @@ package process
 import (
 	"context"
 	"crypto/md5"
+	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -12,8 +14,9 @@ import (
 )
 
 type Process struct {
-	project, logs string
-	names         []string
+	logs  string
+	dirs  map[string]string
+	names []string
 }
 type ListRequest struct{}
 type ListResponse struct {
@@ -34,12 +37,33 @@ func New(project, logs string, names []string) (*Process, error) {
 	if err != nil {
 		return nil, err
 	}
+	var config struct {
+		Services map[string]struct{ Path string }
+	}
+	data, err := os.ReadFile(filepath.Join(project, "micro.json"))
+	if err != nil && !errors.Is(err, os.ErrNotExist) {
+		return nil, err
+	}
+	if err == nil {
+		if err := json.Unmarshal(data, &config); err != nil {
+			return nil, fmt.Errorf("read micro.json: %w", err)
+		}
+	}
+	dirs := make(map[string]string, len(names))
 	for _, name := range names {
 		if name == "" || name == "." || name == ".." || strings.ContainsAny(name, "/\\") {
 			return nil, fmt.Errorf("invalid service directory %q", name)
 		}
+		dir := config.Services[name].Path
+		if dir == "" {
+			dir = name
+		}
+		if !filepath.IsAbs(dir) {
+			dir = filepath.Join(project, dir)
+		}
+		dirs[name] = filepath.Clean(dir)
 	}
-	return &Process{project: project, logs: logs, names: append([]string(nil), names...)}, nil
+	return &Process{dirs: dirs, logs: logs, names: append([]string(nil), names...)}, nil
 }
 func (p *Process) List(_ context.Context, _ *ListRequest, rsp *ListResponse) error {
 	rsp.Services = append([]string(nil), p.names...)
@@ -68,7 +92,7 @@ func (p *Process) Logs(ctx context.Context, req *LogsRequest, rsp *LogsResponse)
 	if err := ctx.Err(); err != nil {
 		return err
 	}
-	dir := filepath.Join(p.project, req.Service)
+	dir := p.dirs[req.Service]
 	hash := fmt.Sprintf("%x", md5.Sum([]byte(dir)))[:8]
 	path := filepath.Join(p.logs, req.Service+"-"+hash+".log")
 	info, err := os.Lstat(path)
