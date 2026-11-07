@@ -6,9 +6,9 @@ import (
 	_ "embed"
 	"log"
 
-	"github.com/micro/agents/internal/config"
-	"github.com/micro/agents/services/health"
-	"github.com/micro/agents/services/monitor"
+	"github.com/micro/studio/internal/config"
+	"github.com/micro/studio/services/health"
+	"github.com/micro/studio/services/monitor"
 	micro "go-micro.dev/v6"
 	_ "go-micro.dev/v6/cmd/defaults"
 	"go-micro.dev/v6/service"

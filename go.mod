@@ -1,4 +1,4 @@
-module github.com/micro/agents
+module github.com/micro/studio
 
 go 1.26.0
 

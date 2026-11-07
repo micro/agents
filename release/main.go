@@ -9,8 +9,8 @@ import (
 	"os"
 	"strings"
 
-	"github.com/micro/agents/services/github"
-	"github.com/micro/agents/services/health"
+	"github.com/micro/studio/services/github"
+	"github.com/micro/studio/services/health"
 	micro "go-micro.dev/v6"
 	"go-micro.dev/v6/agent"
 	"go-micro.dev/v6/client"
@@ -26,7 +26,7 @@ var instructions string
 func main() {
 	repository, workflow, ref := os.Getenv("GITHUB_REPOSITORY"), os.Getenv("RELEASE_WORKFLOW"), os.Getenv("RELEASE_REF")
 	if repository == "" {
-		repository = "micro/agents"
+		repository = "micro/studio"
 	}
 	if ref == "" {
 		ref = "main"

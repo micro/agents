@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Micro Studio</title>
+    <link rel="stylesheet" href="/style.css" />
+    <script src="/app.js" defer></script>
+  </head>
+  <body>
+    <header>
+      <a class="brand" href="/">micro <span>studio</span></a
+      ><span class="local">Local workspace</span>
+    </header>
+    <main>
+      <div class="intro">
+        <div>
+          <h1>A workspace for agents</h1>
+          <p>Discover, test and inspect your Go Micro applications.</p>
+        </div>
+        <button id="refresh" type="button">Refresh</button>
+      </div>
+      <nav aria-label="Workspace">
+        <button data-view="agents" aria-current="page">Agents</button
+        ><button data-view="services">Services</button
+        ><button data-view="alerts">Alerts</button>
+      </nav>
+      <p id="notice" role="status" hidden></p>
+      <section id="agents" class="view">
+        <div class="workspace">
+          <aside>
+            <h2>Agents <span id="agent-count"></span></h2>
+            <div id="agent-list"><p class="muted">Discovering agents…</p></div>
+          </aside>
+          <div class="conversation">
+            <div class="chat-heading">
+              <div>
+                <h2 id="chat-name">Choose an agent</h2>
+                <p id="chat-description" class="muted">
+                  Agents appear when they register with Go Micro.
+                </p>
+              </div>
+              <button id="new-chat" disabled>New chat</button>
+            </div>
+            <div id="messages" aria-live="polite">
+              <p class="empty">
+                Start your services with <code>micro run</code>, then select an
+                agent.
+              </p>
+            </div>
+            <form id="chat-form">
+              <label class="sr-only" for="prompt">Message</label
+              ><textarea
+                id="prompt"
+                rows="2"
+                maxlength="24000"
+                placeholder="Ask the agent to do something…"
+                disabled
+                required
+              ></textarea>
+              <div class="composer-footer">
+                <small>Tool activity appears with each response.</small
+                ><button id="send" class="primary" disabled>Send</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      </section>
+      <section id="services" class="view" hidden>
+        <div class="section-heading">
+          <h2>Services</h2>
+          <p class="muted">
+            Discovered through the same registry as your Go Micro applications.
+          </p>
+        </div>
+        <div id="service-list"></div>
+      </section>
+      <section id="alerts" class="view" hidden>
+        <div class="section-heading">
+          <h2>Alerts</h2>
+          <p class="muted">Incidents and delivery history from Alert.</p>
+        </div>
+        <div id="alert-list"></div>
+      </section>
+      <footer>
+        Built with Go Micro · Access these services from the CLI or an MCP
+        gateway.
+      </footer>
+    </main>
+  </body>
+</html>

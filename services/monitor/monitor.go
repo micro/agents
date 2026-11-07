@@ -5,7 +5,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/micro/agents/services/health"
+	"github.com/micro/studio/services/health"
 	"go-micro.dev/v6/client"
 	"go-micro.dev/v6/registry"
 	"go-micro.dev/v6/store"
@@ -14,7 +14,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/micro/agents/services/systemd"
+	"github.com/micro/studio/services/systemd"
 )
 
 type Monitor struct {

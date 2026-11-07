@@ -4,8 +4,8 @@ package main
 import (
 	"context"
 	_ "embed"
-	"github.com/micro/agents/services/alert"
-	"github.com/micro/agents/services/health"
+	"github.com/micro/studio/services/alert"
+	"github.com/micro/studio/services/health"
 	micro "go-micro.dev/v6"
 	_ "go-micro.dev/v6/cmd/defaults"
 	"go-micro.dev/v6/service"

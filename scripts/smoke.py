@@ -14,6 +14,7 @@ import subprocess
 import tempfile
 import threading
 import time
+import urllib.request
 
 ROOT = Path(__file__).resolve().parents[1]
 MICRO = shutil.which(os.environ.get("MICRO_BIN", "micro"))
@@ -110,7 +111,7 @@ with tempfile.TemporaryDirectory(prefix="agents-smoke-") as scratch:
     work = Path(scratch)
     fixture = http.server.ThreadingHTTPServer(("127.0.0.1", 0), Fixture)
     threading.Thread(target=fixture.serve_forever, daemon=True).start()
-    env = {k: v for k, v in os.environ.items() if not k.startswith(("MICRO_", "GITHUB_", "OPENAI_", "ANTHROPIC_", "SUPPORT_", "DEVOPS_", "MONITOR_", "RELEASE_", "ALERT_"))}
+    env = {k: v for k, v in os.environ.items() if not k.startswith(("MICRO_", "GITHUB_", "OPENAI_", "ANTHROPIC_", "SUPPORT_", "DEVOPS_", "MONITOR_", "RELEASE_", "ALERT_", "STUDIO_"))}
     # Isolate persistent state and never inherit provider credentials.
     env.update(HOME=str(work), GOMODCACHE=os.environ.get("GOMODCACHE", str(Path.home() / "go/pkg/mod")),
                GOCACHE=os.environ.get("GOCACHE", str(Path.home() / ".cache/go-build")),
@@ -118,6 +119,8 @@ with tempfile.TemporaryDirectory(prefix="agents-smoke-") as scratch:
                MICRO_AI_BASE_URL=f"http://127.0.0.1:{fixture.server_port}",
                ALERT_WEBHOOK=f"http://127.0.0.1:{fixture.server_port}/alerts",
                MICRO_REGISTRY="nats", MICRO_BROKER="memory", MICRO_CLIENT_RETRIES="0")
+    studio_port = free_port()
+    env["STUDIO_ADDRESS"] = f"127.0.0.1:{studio_port}"
     port = free_port()
     env["MICRO_REGISTRY_ADDRESS"] = f"nats://127.0.0.1:{port}"
     processes = []
@@ -140,12 +143,31 @@ with tempfile.TemporaryDirectory(prefix="agents-smoke-") as scratch:
         wait_for("shared registry listening", listening, 10)
         plan = subprocess.run([MICRO, "deploy", "--dry-run", "user@example.invalid"], cwd=ROOT, env=env,
                               capture_output=True, text=True, timeout=10, check=True)
-        assert all(name in plan.stdout for name in ("support", "devops", "release", "monitor", "alert")), plan.stdout
+        assert all(name in plan.stdout for name in ("support", "devops", "release", "monitor", "alert", "studio")), plan.stdout
         runner = launch([MICRO, "run", "--no-watch"], "run")
         def healthy():
             result = rpc("monitor", "Monitor.Status")
-            return len(result.get("services", [])) == 5 and all(s["status"] == "healthy" for s in result["services"])
-        wait_for("all five services respond through shared discovery", healthy, 240)
+            return len(result.get("services", [])) == 6 and all(s["status"] == "healthy" for s in result["services"])
+        wait_for("all six services respond through shared discovery", healthy, 240)
+        studio_url = f"http://127.0.0.1:{studio_port}"
+        print("Studio URL:", studio_url, flush=True)
+        def web(path):
+            with urllib.request.urlopen(studio_url + path, timeout=10) as response:
+                return json.load(response)
+        inventory = wait_for("Studio discovers all services", lambda: web("/api/services"))
+        assert {s["name"] for s in inventory} == {"support", "devops", "release", "monitor", "alert", "studio"}, inventory
+        assert len([s for s in inventory if s["agent"]]) == 5, inventory
+        with urllib.request.urlopen(studio_url, timeout=10) as response:
+            assert "Micro Studio" in response.read().decode()
+        request = urllib.request.Request(studio_url + "/api/chat", data=json.dumps({
+            "agent": "monitor", "message": "Check platform health",
+            "session": "7cba214f-e270-4d79-893d-fafedb0bef19"
+        }).encode(), headers={"Content-Type": "application/json", "Origin": studio_url})
+        with urllib.request.urlopen(request, timeout=30) as response:
+            result = json.load(response)
+        assert "healthy" in result["reply"], result
+        assert any(t["name"] == "monitor_Monitor_Status" for t in result["tool_calls"]), result
+        print("PASS: Studio web chat returns the agent reply and tool activity", flush=True)
         answer = subprocess.run([MICRO, "chat", "--yes", "--prompt", "Check platform health"], cwd=ROOT, env=env,
                                 capture_output=True, text=True, timeout=30)
         assert answer.returncode == 0, (answer.stdout, answer.stderr)
@@ -171,6 +193,7 @@ with tempfile.TemporaryDirectory(prefix="agents-smoke-") as scratch:
         print("PASS: the same chat entry point delegated investigation to DevOps and read Support logs", flush=True)
         binary = next((work / "micro/bin").glob("support-*"))
         launch([str(binary)], "support-restarted", ROOT / "support")
+        assert any(n["id"] == fired["id"] for n in web("/api/alerts")["notifications"])
         recovered = wait_for("Support recovery delivered to webhook", lambda: notice("recovered"))
         assert fired["incident"] == recovered["incident"]
         def saved():

@@ -15,7 +15,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/micro/agents/services/monitor"
+	"github.com/micro/studio/services/monitor"
 	"go-micro.dev/v6/client"
 	"go-micro.dev/v6/store"
 )
