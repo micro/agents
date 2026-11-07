@@ -4,9 +4,22 @@ A workspace for agents.
 
 Self-hosted and built with [Go Micro](https://github.com/micro/go-micro).
 
-Discover running services, inspect their endpoints, chat with agents and see
-health and alerts in one place. Studio uses your existing Go Micro registry;
-your applications remain ordinary Go programs.
+![Micro Studio showing Monitor checking the running services](docs/studio.png)
+
+*Local run with a test model and health observations from live services.*
+
+## Features
+
+- **Agent chat:** talk to discovered agents and inspect their tool calls and results.
+- **Service discovery:** see running services, instances, endpoints and schemas.
+- **Health monitoring:** check service responsiveness and record changes.
+- **Alerts:** track incidents, recovery and notification delivery.
+- **Extensible:** connect existing Go Micro applications through the same registry.
+- **CLI and MCP:** use the same agents from `micro chat` or expose them through the gateway.
+
+Includes [Support](support), [DevOps](devops), [Release](release),
+[Monitor](monitor) and [Alert](alert). Monitor and Alert work in the background
+without model calls.
 
 ## Run
 
@@ -16,67 +29,29 @@ Requires Go 1.26 or newer, with Go's bin directory on your PATH.
 go install go-micro.dev/v6/cmd/micro@master
 git clone https://github.com/micro/studio
 cd studio
-```
 
-Set your model configuration, then start Studio and its built-in agents:
-
-```sh
 export MICRO_AI_PROVIDER=openai
 export MICRO_AI_API_KEY=your-model-key
 micro run
 ```
 
-Open **http://localhost:8080**. Select an agent to start a conversation; responses
-include tool calls and results. Services shows discovered endpoints and schemas.
-Alerts shows incidents and notification delivery. The CLI remains available with
-`micro chat` in another terminal using the same model and registry settings.
+Open **http://localhost:8080** and select an agent. To use the CLI, run
+`micro chat` in another terminal with the same model and registry settings.
 
-Studio is currently a local, single-operator workspace. It binds to loopback and
-has no user accounts. For a server, use an SSH tunnel; see [deployment](deploy).
-Chat is request/response, with tool activity shown when the agent finishes.
-Conversations stay separate per agent and browser tab; reloading starts a new
-conversation. Release actions that need interactive approval remain available
-through the CLI; Studio does not grant approval or expose arbitrary RPC writes.
-
-## Built-in agents
-
-- [Support](support): investigate GitHub issues and draft responses.
-- [DevOps](devops): inspect service health and logs.
-- [Release](release): inspect releases and run configured workflows through the CLI.
-- [Monitor](monitor): check service responsiveness and record changes.
-- [Alert](alert): record incidents and deliver failure and recovery notifications.
-
-Support covers Go Micro and this repository by default. Monitor and Alert run
-without model calls. Configure these agents for your environment, or connect
-Studio to your existing registry. To run only the web workspace: `go run ./cmd/studio`.
+Studio currently runs locally for one operator. Chat responses and tool results
+appear when a request finishes; reloading starts a new conversation. Interactive
+Release approvals use the CLI. See [deployment](deploy) for server setup, SSH
+access, configuration and MCP exposure.
 
 ## Extend
 
-Write services and agents using Go Micro. Run them with the same registry as
-Studio and they appear automatically. Studio identifies agents by their
-`Agent.Chat` endpoint. Add local programs to `micro.json` to start them with
+Write services and agents using Go Micro. Run them with Studio's registry and
+they appear automatically. Add local programs to `micro.json` to start them with
 `micro run`. Reusable integrations live in `services/`.
 
-No Studio-specific SDK or application format is required. Service registration
-indicates discovery, not health; health observations come from Monitor's configured
-service set. The current workspace does not manage deployments, credentials or
-agent definitions.
-
-## MCP
-
-Expose the same running services to another client:
-
-```sh
-micro gateway --mcp-address 127.0.0.1:3000
-```
-
-Connect to **http://127.0.0.1:3000/mcp** using Streamable HTTP. The gateway discovers
-tools automatically; it must use the same registry. The default is local mDNS.
-
-The gateway includes write endpoints by default. Restrict tools with
-`--mcp-tool <tool-name>` before exposing deployment actions: MCP calls do not
-inherit chat approval. Remote gateways require HTTPS and `--auth` with
-`MICRO_AUTH_TOKEN` and a matching bearer token in the client.
+To run only the workspace against existing services: `go run ./cmd/studio`.
+Studio identifies agents by `Agent.Chat`; Monitor checks its configured service
+set. Studio does not yet manage agent definitions, credentials or deployments.
 
 ## Development
 
@@ -85,9 +60,8 @@ go test -race ./...
 go build ./...
 ```
 
-With `micro` and `nats-server` installed, run `python3 scripts/smoke.py` to test
-startup, Studio web chat, CLI delegation, service failure, alert delivery and
-recovery. The test uses local fixtures and temporary state, without real model
-credentials. Set `MICRO_BIN` to select a CLI binary.
+With `micro` and `nats-server` installed, `python3 scripts/smoke.py` tests startup,
+web chat, CLI delegation and failure/recovery alerts using local fixtures.
+Set `MICRO_BIN` to select a CLI binary.
 
 Licensed under AGPL-3.0; see [LICENSE](LICENSE).
