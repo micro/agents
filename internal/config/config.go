@@ -15,7 +15,7 @@ func SupportRepositories() []string {
 	if value := os.Getenv("GITHUB_REPOSITORY"); value != "" {
 		return []string{value}
 	}
-	return []string{"micro/go-micro", "micro/agents"}
+	return []string{"micro/go-micro", "micro/studio"}
 }
 
 // Services uses the same set for DevOps and monitoring unless explicitly overridden.
@@ -23,7 +23,7 @@ func Services() []string {
 	if value := os.Getenv("DEVOPS_SERVICES"); value != "" {
 		return strings.Split(value, ",")
 	}
-	return []string{"micro@support.service", "micro@devops.service", "micro@release.service", "micro@monitor.service", "micro@alert.service"}
+	return []string{"micro@support.service", "micro@devops.service", "micro@release.service", "micro@monitor.service", "micro@alert.service", "micro@studio.service"}
 }
 
 // Agents is the default service set, regardless of how the processes are started.
@@ -31,7 +31,7 @@ func Agents() []string {
 	if value := os.Getenv("MONITOR_SERVICES"); value != "" {
 		return strings.Split(value, ",")
 	}
-	return []string{"support", "devops", "release", "monitor", "alert"}
+	return []string{"support", "devops", "release", "monitor", "alert", "studio"}
 }
 
 // Project finds the module root when micro run starts an agent in its directory.

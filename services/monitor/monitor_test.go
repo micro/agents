@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/micro/agents/services/systemd"
+	"github.com/micro/studio/services/systemd"
 	"go-micro.dev/v6/broker"
 	"go-micro.dev/v6/client"
 	"go-micro.dev/v6/registry"

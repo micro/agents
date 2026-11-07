@@ -4,7 +4,7 @@ import (
 	"context"
 	"testing"
 
-	"github.com/micro/agents/services/health"
+	"github.com/micro/studio/services/health"
 	"go-micro.dev/v6/broker"
 	"go-micro.dev/v6/client"
 	"go-micro.dev/v6/registry"

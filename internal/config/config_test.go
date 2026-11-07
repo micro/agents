@@ -12,7 +12,7 @@ func TestDefaultsAndOverrides(t *testing.T) {
 	for _, name := range []string{"SUPPORT_REPOSITORIES", "GITHUB_REPOSITORY", "DEVOPS_SERVICES"} {
 		t.Setenv(name, "")
 	}
-	if got := SupportRepositories(); !reflect.DeepEqual(got, []string{"micro/go-micro", "micro/agents"}) {
+	if got := SupportRepositories(); !reflect.DeepEqual(got, []string{"micro/go-micro", "micro/studio"}) {
 		t.Fatal(got)
 	}
 	data, err := os.ReadFile("../../micro.json")
@@ -27,7 +27,11 @@ func TestDefaultsAndOverrides(t *testing.T) {
 	}
 	t.Setenv("MONITOR_SERVICES", "")
 	for _, name := range Agents() {
-		if cfg.Services[name].Path != "./"+name {
+		want := "./" + name
+		if name == "studio" {
+			want = "./cmd/studio"
+		}
+		if cfg.Services[name].Path != want {
 			t.Fatalf("missing service %s", name)
 		}
 	}

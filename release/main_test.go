@@ -9,7 +9,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/micro/agents/services/github"
+	"github.com/micro/studio/services/github"
 	micro "go-micro.dev/v6"
 	"go-micro.dev/v6/agent"
 	pb "go-micro.dev/v6/agent/proto"

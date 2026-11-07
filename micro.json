@@ -1,9 +1,30 @@
 {
   "services": {
-    "support": {"path": "./support"},
-    "devops": {"path": "./devops"},
-    "release": {"path": "./release"},
-    "monitor": {"path": "./monitor", "depends": ["support", "devops", "release"]},
-    "alert": {"path": "./alert", "depends": ["monitor"]}
+    "support": {
+      "path": "./support"
+    },
+    "devops": {
+      "path": "./devops"
+    },
+    "release": {
+      "path": "./release"
+    },
+    "monitor": {
+      "path": "./monitor",
+      "depends": [
+        "support",
+        "devops",
+        "release"
+      ]
+    },
+    "alert": {
+      "path": "./alert",
+      "depends": [
+        "monitor"
+      ]
+    },
+    "studio": {
+      "path": "./cmd/studio"
+    }
   }
 }

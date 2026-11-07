@@ -6,7 +6,7 @@ It cannot post comments, change labels, close issues or execute code.
 
 ## Run
 
-By default, support covers both `micro/go-micro` and `micro/agents`.
+By default, support covers both `micro/go-micro` and `micro/studio`.
 From the repository root, configure a supported model:
 
 ```sh

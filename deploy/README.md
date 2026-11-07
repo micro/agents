@@ -1,4 +1,4 @@
-# Deployment
+# Studio deployment
 
 The same `micro.json` describes local startup and server deployment. Locally:
 
@@ -6,9 +6,9 @@ The same `micro.json` describes local startup and server deployment. Locally:
 micro run
 ```
 
-All five agents are separate processes. Monitor checks their RPC endpoints and
+Studio and the five built-in agents run as separate processes. Monitor checks their RPC endpoints and
 Alert records failures and recoveries. No systemd installation is needed locally.
-Use `micro chat` as the single entry point.
+Open http://localhost:8080 for Studio, or use `micro chat` from the CLI.
 
 ## Linux server
 
@@ -21,8 +21,8 @@ sudo micro init --server
 This creates the `micro` account, `/opt/micro/{bin,config,data}` and the
 `micro@.service` unit. Before deployment, create a mode-600 environment file for
 each agent in `/opt/micro/config/`: `support.env`, `devops.env`, `release.env`,
-`monitor.env` and `alert.env`. The systemd manager reads these files; keep them
-root-owned. Each file needs your model configuration and a writable home:
+`monitor.env`, `alert.env` and `studio.env`. The systemd manager reads these files; keep them
+root-owned. Each agent file needs your model configuration and a writable home. Studio itself needs no model credentials; set its HOME and registry settings:
 
 ```ini
 HOME=/opt/micro/data
@@ -33,7 +33,7 @@ MICRO_AI_API_KEY=your-model-key
 In `devops.env`, select systemd inspection:
 
 ```ini
-DEVOPS_SERVICES=micro@support.service,micro@devops.service,micro@release.service,micro@monitor.service,micro@alert.service
+DEVOPS_SERVICES=micro@support.service,micro@devops.service,micro@release.service,micro@monitor.service,micro@alert.service,micro@studio.service
 ```
 
 Grant the `micro` account journal access if needed (`systemd-journal` on many
@@ -58,12 +58,26 @@ systemd units. The current CLI builds for Linux/amd64. It does not provision a
 host or configure credentials, and it does not verify an application's behaviour.
 The services bind to loopback; run chat and the MCP gateway on that same host.
 
+## Browser access
+
+Studio listens on `127.0.0.1:8080`. Connect from your computer using an SSH tunnel:
+
+```sh
+ssh -L 8080:127.0.0.1:8080 user@host
+```
+
+Then open http://localhost:8080. This version is for one trusted operator and has
+no login or team permissions. Keep it on loopback; it rejects non-loopback bind
+addresses and cross-origin browser requests. `STUDIO_ADDRESS` can select another
+loopback port. Studio does not start, stop or deploy services through the browser.
+Use the CLI for deployment and interactive Release approvals.
+
 ## Overrides
 
 - `SUPPORT_REPOSITORIES`: comma-separated repositories; defaults to Go Micro and this repo.
 - `GITHUB_REPOSITORY`: Release's repository, and the legacy single-repository Support override. Use per-agent environment files to keep these separate.
 - `DEVOPS_SERVICES`: explicit systemd units; otherwise DevOps reads this project's `micro run` logs.
-- `MONITOR_SERVICES`: registered service names, defaulting to the five agents.
+- `MONITOR_SERVICES`: registered service names, defaulting to the five agents and Studio.
 - `ALERT_WEBHOOK`: optional HTTP(S) notification destination, configured by the operator.
 
 Monitor and Alert persist state through Go Micro's configured store. Keep
