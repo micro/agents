@@ -84,3 +84,20 @@ Monitor and Alert persist state through Go Micro's configured store. Keep
 `/opt/micro/data` across upgrades. Run one Monitor and one Alert per deployment;
 their state is not coordinated across replicas. Use separate state directories
 and registry scopes for separate deployments.
+
+## MCP
+
+With the services running, start the Go Micro gateway on the same host and registry:
+
+```sh
+micro gateway --mcp-address 127.0.0.1:3000
+```
+
+Connect an MCP client to **http://127.0.0.1:3000/mcp** using Streamable HTTP.
+The gateway discovers service endpoints automatically. The default registry is
+local mDNS; an MCP client needs only the gateway connection.
+
+The gateway includes write endpoints by default. Restrict tools with
+`--mcp-tool <tool-name>` before exposing deployment actions: MCP calls do not
+inherit chat approval. Remote gateways require HTTPS and `--auth` with
+`MICRO_AUTH_TOKEN` and a matching bearer token in the client.
